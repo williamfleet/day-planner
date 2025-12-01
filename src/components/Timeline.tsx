@@ -29,34 +29,57 @@ const timeSlots = timeSlotStrings.slice(0, -1).map((startTime, index) => ({
   endMinutes: timeToMinutes(timeSlotStrings[index + 1]),
 }));
 
-const Timeline: React.FC = () => {
-  const [tasks, setTasks] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTasks = localStorage.getItem('tasks');
-      return savedTasks ? JSON.parse(savedTasks) : new Array(timeSlots.length).fill('');
-    }
-    return new Array(timeSlots.length).fill('');
-  });
+interface Task {
+  text: string;
+  span: number;
+}
 
+const Timeline: React.FC = () => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   useEffect(() => {
+    setIsMounted(true);
+    setTasks(timeSlots.map(() => ({ text: '', span: 1 })));
+
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
-  }, [tasks]);
-
-  const handleTaskChange = (index: number, newTask: string) => {
+  const handleTaskChange = (index: number, newText: string) => {
     const newTasks = [...tasks];
-    newTasks[index] = newTask;
+    newTasks[index].text = newText;
     setTasks(newTasks);
+  };
+
+  const handleMerge = (index: number) => {
+    const newTasks = [...tasks];
+    const currentTask = newTasks[index];
+    let nextTaskIndex = index + currentTask.span;
+    if (nextTaskIndex < newTasks.length) {
+      const nextTask = newTasks[nextTaskIndex];
+      if (nextTask.span > 0) {
+        currentTask.span += nextTask.span;
+        nextTask.span = 0;
+        setTasks(newTasks);
+      }
+    }
+  };
+
+  const handleSplit = (index: number) => {
+    const newTasks = [...tasks];
+    const currentTask = newTasks[index];
+    if (currentTask.span > 1) {
+      const nextTaskIndex = index + 1;
+      const nextTask = newTasks[nextTaskIndex];
+      currentTask.span -= 1;
+      nextTask.span = 1;
+      nextTask.text = '';
+      setTasks(newTasks);
+    }
   };
 
   const getCurrentTimeSlotIndex = () => {
@@ -65,7 +88,42 @@ const Timeline: React.FC = () => {
     return timeSlots.findIndex(slot => currentMinutes >= slot.startMinutes && currentMinutes < slot.endMinutes);
   };
 
+  if (!isMounted) {
+    return null;
+  }
+
   const currentIndex = getCurrentTimeSlotIndex();
+
+  let slotContent;
+  if (tasks.length === 0) {
+    slotContent = <div className="p-8 text-center text-gray-500">Loading...</div>;
+  } else {
+    const renderedSlots = [];
+    for (let i = 0; i < timeSlots.length; i += (tasks[i]?.span || 1)) {
+      if (tasks[i] && tasks[i].span > 0) {
+        const span = tasks[i].span;
+        if (i + span > timeSlots.length) {
+          //This is a guard against invalid data from localstorage
+          tasks[i].span = 1;
+        }
+        const endTime = timeSlots[i + tasks[i].span - 1].endTime;
+        renderedSlots.push(
+          <TimeSlot
+            key={i}
+            startTime={timeSlots[i].startTime}
+            endTime={endTime}
+            task={tasks[i].text}
+            span={tasks[i].span}
+            onTaskChange={(newText) => handleTaskChange(i, newText)}
+            onMerge={() => handleMerge(i)}
+            onSplit={() => handleSplit(i)}
+            isCurrent={i <= currentIndex && currentIndex < i + tasks[i].span}
+          />
+        );
+      }
+    }
+    slotContent = renderedSlots;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 py-8">
@@ -74,16 +132,7 @@ const Timeline: React.FC = () => {
           Today's Plan
         </h1>
         <div className="bg-white rounded-lg shadow-lg">
-          {timeSlots.map((slot, index) => (
-            <TimeSlot
-              key={index}
-              startTime={slot.startTime}
-              endTime={slot.endTime}
-              task={tasks[index]}
-              onTaskChange={(newTask) => handleTaskChange(index, newTask)}
-              isCurrent={index === currentIndex}
-            />
-          ))}
+          {slotContent}
         </div>
       </div>
     </div>
