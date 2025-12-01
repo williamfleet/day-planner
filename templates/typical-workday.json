@@ -1,0 +1,82 @@
+{
+  "name": "Typical Workday",
+  "tasks": [
+    {
+      "text": "Morning standup / Check emails",
+      "span": 1
+    },
+    {
+      "text": "Deep work - Focus on main project",
+      "span": 3
+    },
+    {
+      "text": "",
+      "span": 0
+    },
+    {
+      "text": "",
+      "span": 0
+    },
+    {
+      "text": "",
+      "span": 0
+    },
+    {
+      "text": "Lunch break",
+      "span": 2
+    },
+    {
+      "text": "",
+      "span": 0
+    },
+    {
+      "text": "Meetings & collaboration",
+      "span": 2
+    },
+    {
+      "text": "",
+      "span": 0
+    },
+    {
+      "text": "Code review & team support",
+      "span": 1
+    },
+    {
+      "text": "Deep work - Secondary tasks",
+      "span": 2
+    },
+    {
+      "text": "",
+      "span": 0
+    },
+    {
+      "text": "Wrap up & plan tomorrow",
+      "span": 1
+    },
+    {
+      "text": "",
+      "span": 1
+    },
+    {
+      "text": "",
+      "span": 1
+    },
+    {
+      "text": "",
+      "span": 1
+    },
+    {
+      "text": "",
+      "span": 1
+    },
+    {
+      "text": "",
+      "span": 1
+    },
+    {
+      "text": "",
+      "span": 1
+    }
+  ],
+  "createdAt": "2025-12-01T00:00:00.000Z"
+}

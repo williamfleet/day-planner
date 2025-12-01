@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import TimeSlot from './TimeSlot';
+import SaveTemplateModal from './SaveTemplateModal';
+import PlanDayModal from './PlanDayModal';
 
 const timeSlotStrings = [
   '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM',
@@ -38,16 +40,37 @@ const Timeline: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    setTasks(timeSlots.map(() => ({ text: '', span: 1 })));
+    try {
+      const savedTasks = localStorage.getItem('tasks');
+      const parsedTasks = savedTasks ? JSON.parse(savedTasks) : timeSlots.map(() => ({ text: '', span: 1 }));
+      console.log('Loading tasks:', parsedTasks);
+      setTasks(parsedTasks);
+    } catch (error) {
+      console.error('Error parsing tasks from localStorage', error);
+      setTasks(timeSlots.map(() => ({ text: '', span: 1 })));
+    }
 
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    console.log('Tasks updated:', tasks.length, 'tasks');
+    if (isMounted && tasks.length > 0) {
+      try {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+      } catch (error) {
+        console.error('Error saving tasks to localStorage', error);
+      }
+    }
+  }, [tasks, isMounted]);
 
   const handleTaskChange = (index: number, newText: string) => {
     const newTasks = [...tasks];
@@ -88,18 +111,50 @@ const Timeline: React.FC = () => {
     return timeSlots.findIndex(slot => currentMinutes >= slot.startMinutes && currentMinutes < slot.endMinutes);
   };
 
-  if (!isMounted) {
-    return null;
+  const handleSaveTemplate = async (name: string) => {
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, tasks }),
+      });
+
+      if (response.ok) {
+        alert('Template saved successfully!');
+      } else {
+        alert('Failed to save template');
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Failed to save template');
+    }
+  };
+
+  const handleLoadTemplate = (loadedTasks: Task[]) => {
+    setTasks(loadedTasks);
+  };
+
+  if (!isMounted || tasks.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 py-8">
+        <div className="w-full max-w-4xl mx-auto">
+          <h1 className="text-4xl font-bold text-center text-gray-800 mb-8">
+            Today's Plan
+          </h1>
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">
+            Loading...
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const currentIndex = getCurrentTimeSlotIndex();
 
-  let slotContent;
-  if (tasks.length === 0) {
-    slotContent = <div className="p-8 text-center text-gray-500">Loading...</div>;
-  } else {
-    const renderedSlots = [];
-    for (let i = 0; i < timeSlots.length; i += (tasks[i]?.span || 1)) {
+  const renderedSlots = [];
+  for (let i = 0; i < timeSlots.length; i += (tasks[i]?.span || 1)) {
       if (tasks[i] && tasks[i].span > 0) {
         const span = tasks[i].span;
         if (i + span > timeSlots.length) {
@@ -122,19 +177,45 @@ const Timeline: React.FC = () => {
         );
       }
     }
-    slotContent = renderedSlots;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 py-8">
       <div className="w-full max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center text-gray-800 mb-8">
-          Today's Plan
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800">
+            Today's Plan
+          </h1>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowPlanModal(true)}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow-md transition-colors"
+            >
+              Plan Day
+            </button>
+            <button
+              onClick={() => setShowSaveModal(true)}
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-md transition-colors"
+            >
+              Save Template
+            </button>
+          </div>
+        </div>
         <div className="bg-white rounded-lg shadow-lg">
-          {slotContent}
+          {renderedSlots}
         </div>
       </div>
+
+      <SaveTemplateModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={handleSaveTemplate}
+      />
+
+      <PlanDayModal
+        isOpen={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        onSelect={handleLoadTemplate}
+      />
     </div>
   );
 };
